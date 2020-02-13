@@ -21,6 +21,7 @@ namespace CheckSign
 
         public static String UnsignedPath { get; private set; }
         public static String WrongCertPath { get; private set; }
+        public static Stack<String> PathStack { get { return pathStack; } }
 
         private static int depth = 0;
 
