@@ -10,7 +10,6 @@ namespace depend
 {
     using System;
     using System.Collections.Generic;
-    using System.IO;
     using System.Net.NetworkInformation;
     using System.Reflection;
 
@@ -19,11 +18,6 @@ namespace depend
     /// </summary>
     class Depend
     {
-        /// <summary>
-        /// track all of assemblies in the directory and mark when they are used.
-        /// </summary>
-        static Dictionary<string, bool> assemblyConsumed = new Dictionary<string, bool>();
-
         /// <summary>
         /// The already found.
         /// </summary>
@@ -35,7 +29,7 @@ namespace depend
         static int indentLevel = 0;
 
         private static int maxDepthReached = 0;
-
+    
         /// <summary>
         /// The max depth.
         /// </summary>
@@ -78,15 +72,11 @@ namespace depend
                     }
                 }
 
-                assemblyConsumed.Clear();
-
                 alreadyFound.Clear();
                 notLoaded.Clear();
 
                 Assembly assembly = TryLoad(fileName);
                 maxDepthReached = 0;
-
-                PopulateConsumptionTracker(new FileInfo(assembly.Location).DirectoryName);
 
                 RecurseGetReferencedAssemblies(assembly);
                 Console.WriteLine($"Max Depth Reached : {maxDepthReached}");
@@ -95,14 +85,6 @@ namespace depend
             {
                 Console.WriteLine($"Error walking tree : {exception.Message}");
                 return 0;
-            }
-
-            foreach (string key in assemblyConsumed.Keys)
-            {
-                if (assemblyConsumed[key] == false)
-                {
-                    WriteLine($"local assembly loaded but explicitly not referenced:  {key}");
-                }
             }
 
             if (notLoaded.Count == 0)
@@ -115,26 +97,10 @@ namespace depend
                 WriteLine("Assemblies which were not found or loaded : ");
                 foreach (string name in notLoaded.Values)
                 {
-                    //TODO:  get the caller information on this line.
-                    WriteLine($"Missing dependency: <depends on>:  {name}");
+                    WriteLine($"{name}");
                 }
 
                 return -notLoaded.Count;
-            }
-        }
-
-        static private void PopulateConsumptionTracker(string location)
-        {
-            DirectoryInfo directoryInfo = new DirectoryInfo(location);
-            foreach (FileInfo assembly in directoryInfo.GetFiles("*.dll"))
-            {
-                assemblyConsumed.Add(assembly.Name.ToLowerInvariant().Replace(".dll", string.Empty), false);
-                ////WriteLine($"added:  {assembly.Name.ToLowerInvariant().Replace(".dll", string.Empty)}");
-            }
-            foreach (FileInfo assembly in directoryInfo.GetFiles("*.exe"))
-            {
-                assemblyConsumed.Add(assembly.Name.ToLowerInvariant().Replace(".exe", string.Empty), false);
-                ////WriteLine($"added:  {assembly.Name.ToLowerInvariant().Replace(".exe", string.Empty)}");
             }
         }
 
@@ -153,13 +119,6 @@ namespace depend
 
             if (assembly != null)
             {
-                string assemblyName = assembly.GetName().Name.ToLowerInvariant();
-                if (assemblyConsumed.ContainsKey(assemblyName))
-                {
-                    ////WriteLine($"marking {assemblyName} as consumed");
-                    assemblyConsumed[assemblyName] = true;
-                }
-
                 int count = alreadyFound.ContainsKey(assembly.FullName) ? alreadyFound[assembly.FullName] : 0;
                 count++;
                 alreadyFound[assembly.FullName] = count;
@@ -167,12 +126,12 @@ namespace depend
                 if (count > 1 || indentLevel >= maxDepth)
                 {
                     WriteLine($"{assembly.FullName} - Not Recursing");
-                    ////WriteLine($"--{assembly.ImageRuntimeVersion} {assembly.Location}");
+                    WriteLine($"--{assembly.ImageRuntimeVersion} {assembly.Location}");
                 }
-                else
+                else 
                 {
                     WriteLine($"{assembly.FullName}");
-                    ////WriteLine($"--{assembly.ImageRuntimeVersion} {assembly.Location}");
+                    WriteLine($"--{assembly.ImageRuntimeVersion} {assembly.Location}");
 
                     if (assembly != null)
                     {
@@ -193,7 +152,7 @@ namespace depend
                                 catch (Exception)
                                 {
                                     // try with partial name
-                                    WriteLine($" *** Missing dependency:  {assembly.GetName().Name} depends on: {reference.FullName}");
+                                    WriteLine($" *** Could not load {reference.FullName} ***");
                                     notLoaded[reference.FullName] = reference.FullName;
                                 }
                             }
@@ -258,7 +217,7 @@ namespace depend
                                     throw;
                                 }
                             }
-                            catch { throw; }
+                            catch { throw;}
                         }
                     }
                 }
