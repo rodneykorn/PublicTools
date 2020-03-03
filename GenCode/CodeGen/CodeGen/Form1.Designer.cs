@@ -40,13 +40,14 @@
             this.textBox4 = new System.Windows.Forms.TextBox();
             this.button4 = new System.Windows.Forms.Button();
             this.csdefDir = new System.Windows.Forms.TextBox();
-            this.button5 = new System.Windows.Forms.Button();
+            this.BrowseButton = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.Apply = new System.Windows.Forms.Button();
             this.checkBox1 = new System.Windows.Forms.CheckBox();
             this.checkBox2 = new System.Windows.Forms.CheckBox();
             this.checkBox3 = new System.Windows.Forms.CheckBox();
             this.button6 = new System.Windows.Forms.Button();
+            this.GetConfigButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // Symbol
@@ -148,13 +149,13 @@
             // 
             // button5
             // 
-            this.button5.Location = new System.Drawing.Point(20, 376);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(75, 23);
-            this.button5.TabIndex = 11;
-            this.button5.Text = "Browse...";
-            this.button5.UseVisualStyleBackColor = true;
-            this.button5.Click += new System.EventHandler(this.OnBrowseDir_Click);
+            this.BrowseButton.Location = new System.Drawing.Point(20, 376);
+            this.BrowseButton.Name = "button5";
+            this.BrowseButton.Size = new System.Drawing.Size(75, 23);
+            this.BrowseButton.TabIndex = 11;
+            this.BrowseButton.Text = "Browse...";
+            this.BrowseButton.UseVisualStyleBackColor = true;
+            this.BrowseButton.Click += new System.EventHandler(this.OnBrowseDir_Click);
             // 
             // label2
             // 
@@ -164,7 +165,6 @@
             this.label2.Size = new System.Drawing.Size(52, 13);
             this.label2.TabIndex = 12;
             this.label2.Text = "csdef Dir:";
-            this.label2.Click += new System.EventHandler(this.label2_Click);
             // 
             // Apply
             // 
@@ -216,18 +216,29 @@
             this.button6.UseVisualStyleBackColor = true;
             this.button6.Click += new System.EventHandler(this.button6_Click);
             // 
+            // button7
+            // 
+            this.GetConfigButton.Location = new System.Drawing.Point(680, 415);
+            this.GetConfigButton.Name = "button7";
+            this.GetConfigButton.Size = new System.Drawing.Size(108, 23);
+            this.GetConfigButton.TabIndex = 16;
+            this.GetConfigButton.Text = "GetConfigValues";
+            this.GetConfigButton.UseVisualStyleBackColor = true;
+            this.GetConfigButton.Click += new System.EventHandler(this.GetConfigButtonClicked);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(800, 450);
+            this.Controls.Add(this.GetConfigButton);
             this.Controls.Add(this.button6);
             this.Controls.Add(this.checkBox3);
             this.Controls.Add(this.checkBox2);
             this.Controls.Add(this.checkBox1);
             this.Controls.Add(this.Apply);
             this.Controls.Add(this.label2);
-            this.Controls.Add(this.button5);
+            this.Controls.Add(this.BrowseButton);
             this.Controls.Add(this.csdefDir);
             this.Controls.Add(this.button4);
             this.Controls.Add(this.textBox4);
@@ -260,13 +271,14 @@
         private System.Windows.Forms.TextBox textBox4;
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.TextBox csdefDir;
-        private System.Windows.Forms.Button button5;
+        private System.Windows.Forms.Button BrowseButton;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button Apply;
         private System.Windows.Forms.CheckBox checkBox1;
         private System.Windows.Forms.CheckBox checkBox2;
         private System.Windows.Forms.CheckBox checkBox3;
         private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.Button GetConfigButton;
     }
 }
 

@@ -23,7 +23,7 @@ namespace CodeGen
         private string serviceConfigurationPath3;
         private string scopeBindingsPath;
         private bool writeFiles = false;
-
+        private Dictionary<string, ItemData> configValues = new Dictionary<string, ItemData>();
         public Form1()
         {
             config = File.ReadAllLines(@"configsettings.xml");
@@ -138,7 +138,33 @@ namespace CodeGen
                         int indexOfValueStart = config[index].IndexOf('>');
                         string sub = config[index].Substring(indexOfValueStart + 1);
                         int indexOfValueEnd = sub.IndexOf('<');
-                        retVal = sub.Substring(0, indexOfValueEnd);
+                        if (indexOfValueEnd == -1)
+                        {
+                            // multi line
+                            bool foundEnd = false;
+                            StringBuilder multiline = new StringBuilder();
+                            multiline.AppendLine(sub);
+                            while (!foundEnd)
+                            {
+                                index++;
+                                string sub2 = config[index];
+                                int indexOfValueEnd2 = sub2.IndexOf('<');
+                                if (indexOfValueEnd2 > 0)
+                                {
+                                    foundEnd = true;
+                                    multiline.AppendLine(sub2.Substring(0, indexOfValueEnd2));
+                                }
+                                else
+                                {
+                                    multiline.AppendLine(sub2);
+                                }
+                            }
+                            retVal = multiline.ToString();
+                        }
+                        else
+                        {
+                            retVal = sub.Substring(0, indexOfValueEnd);
+                        }
                         getValue = false;
 
                     }
@@ -157,6 +183,7 @@ namespace CodeGen
                 }
 
             }
+            retVal = retVal.Replace("\"", "&quot;");
             return retVal;
         }
 
@@ -306,16 +333,16 @@ namespace CodeGen
                         inScope = false;
                         
                     }
-                    if (lines[index].Contains("{"))
+                    if (lines[index].Trim().StartsWith("{"))
                     {
                         inObject = true;
                         obj = new StringBuilder();
                     }
-                    if (lines[index].Contains("}"))
+                    if (lines[index].Trim().StartsWith("}"))
                     {
                         inObject = false;
                         sb.Append(obj.ToString());
-                        if (inScope && lines[index+1].Contains("]") && !found && inBindings)
+                        if (inScope && lines[index+1].Trim().StartsWith("]") && !found && inBindings)
                         {
                             postfix = ",";
                         }
@@ -490,11 +517,6 @@ namespace CodeGen
 
         }
 
-        private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void button6_Click(object sender, EventArgs e)
         {
             bool inSettings = false;
@@ -550,6 +572,150 @@ namespace CodeGen
 
 
 
+        }
+
+        private void GetConfigButtonClicked(object sender, EventArgs e)
+        {
+            int count = 0;
+            string currentClass = "Unknown";
+            string currentPropertyName = "unknown";
+            string currentType = "unknown";
+            bool MultiLine = false;
+            StringBuilder sbMl = new StringBuilder();
+
+            string[] config = File.ReadAllLines(@"configsettings.xml");
+            
+            Regex findClassRegex = new Regex("<SettingClass FullClassName=\"(?<class>.+)\">");
+            Regex findPropertyName = new Regex("<SettingValue PropertyName=\"(?<name>.+)\">");
+            Regex findPropertyValue =   new Regex("<PropertyValue xsi:type=\"xsd:(?<type>\\w+)\">(?<value>.*)</PropertyValue>");
+            Regex findPropertyValueML = new Regex("<PropertyValue xsi:type=\"xsd:(?<type>\\w+)\">(?<value>[{\\[])\\s*");
+            Regex findEndML = new Regex("^\\s*(?<value>[}\\]])</PropertyValue>");
+
+            configValues.Clear();
+            for(int index = 0; index < config.Length; index++)
+            {
+                string line = config[index];
+                MatchCollection matchCollection = findClassRegex.Matches(line);
+                if (matchCollection.Count == 1)
+                {
+                    GroupCollection groups = matchCollection[0].Groups;
+                    currentClass = groups["class"].Value;
+                }
+                matchCollection = findPropertyName.Matches(line);
+                if (matchCollection.Count == 1)
+                {
+                    GroupCollection groups = matchCollection[0].Groups;
+                    currentPropertyName = groups["name"].Value;
+                }
+                matchCollection = findPropertyValue.Matches(line);
+                if (matchCollection.Count == 1)
+                {
+                    GroupCollection groups = matchCollection[0].Groups;
+                    string type = groups["type"].Value;
+                    string value  = groups["value"].Value;
+                    configValues[$"{count++:0000}"] = new ItemData { Class = currentClass, Property = currentPropertyName, Type = type, Value = value, MultiLine=false };
+                }
+                matchCollection = findPropertyValueML.Matches(line);
+                if (matchCollection.Count == 1)
+                {
+                    sbMl.Clear();
+
+                    GroupCollection groups = matchCollection[0].Groups;
+                    string type = groups["type"].Value;
+                    string value = groups["value"].Value;
+                    line = value;
+                    MultiLine = true;
+                }
+                matchCollection = findEndML.Matches(line);
+                if (matchCollection.Count == 1 && MultiLine)
+                {
+                    GroupCollection groups = matchCollection[0].Groups;
+                    string value = groups["value"].Value;
+                    sbMl.AppendLine(value);
+                    configValues[$"{count++:0000}"] = new ItemData { Class = currentClass, Property = currentPropertyName, Type = currentType, Value = sbMl.ToString(),MultiLine=true };
+                    MultiLine = false;
+                    sbMl.Clear();
+                }
+                if (MultiLine)
+                {
+                    sbMl.AppendLine(line);
+                }
+            }
+
+            sbMl.Clear();
+            sbMl.AppendLine($"      <!-- ServiceConfiguration.Cloud.cscfg  -->");
+            string className = string.Empty;
+
+            foreach (var item in configValues)
+            {
+                string replaceName = CamelToUnderScore(item.Value.Property);
+
+                if (item.Value.Class != className)
+                {
+                    className = item.Value.Class;
+                    sbMl.AppendLine();
+                    sbMl.AppendLine($"      <!-- {className} settings  -->");
+                }
+
+                sbMl.AppendLine($"<Setting name=\"{item.Value.Property}\" value=\"{replaceName}\"/>");
+            }
+
+            sbMl.AppendLine($"      <!-- ServiceDefinition.csdef  -->");
+            className = string.Empty;
+
+            foreach (var item in configValues)
+            {
+                string replaceName = CamelToUnderScore(item.Value.Property);
+
+                if (item.Value.Class != className)
+                {
+                    className = item.Value.Class;
+                    sbMl.AppendLine();
+                    sbMl.AppendLine($"      <!-- {className} settings  -->");
+                }
+
+                sbMl.AppendLine($"<Setting name=\"{item.Value.Property}\"/>");
+            }
+
+            bool first = true;
+            className = string.Empty;
+            sbMl.AppendLine($"      <!-- Bindings  -->");
+
+            foreach (var item in configValues)
+            {
+                string name = CamelToUnderScore(item.Value.Property);
+
+                if (!first)
+                {
+                    sbMl.AppendLine(",");
+                }
+
+                if (item.Value.Class != className)
+                {
+                    className = item.Value.Class;
+                    sbMl.AppendLine();
+                    sbMl.AppendLine($"***********************{className}***********************");
+                }
+
+                first = false;
+
+                sbMl.AppendLine("        {");
+                sbMl.AppendLine($"\"find\": \"{name}\",");
+                string v = item.Value.Value.Replace("\"", "&quot;");
+                if (item.Value.MultiLine)
+                {
+
+                    sbMl.AppendLine($"\"replaceWith\": \"{v}\",");
+                }
+                else
+                {
+                    sbMl.AppendLine($"\"replaceWith\": \"{v}\",");
+                }
+                sbMl.Append("        }");
+            }
+
+
+            Clipboard.SetText(sbMl.ToString());
         }
     }
 }
