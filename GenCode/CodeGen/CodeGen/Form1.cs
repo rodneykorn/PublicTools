@@ -303,6 +303,8 @@ namespace CodeGen
             bool inObject = false;
             bool found = false;
             string postfix = "";
+            int parenDepth = 0;
+            // int bracketDepth = 0;
 
             StringBuilder sb = new StringBuilder();
             StringBuilder obj = new StringBuilder();
@@ -318,7 +320,7 @@ namespace CodeGen
                 if (lines[index].Contains("\"bindings\": [")) { inBindings = true; inObject = false; }
                 if (inBindings /* && inScope */)
                 {
-                    if (lines[index].Contains("]"))
+                    if (!inObject &&  lines[index].Contains("]"))
                     {
                         // Append the data
                         if (inScope && inBindings && !found)
@@ -333,12 +335,26 @@ namespace CodeGen
                         inScope = false;
                         
                     }
-                    if (lines[index].Trim().StartsWith("{"))
+
+                    if (inObject && lines[index].Contains("{"))
+                    {
+                        parenDepth++;
+                    }
+                    //if (inObject && lines[index].Contains("["))
+                    //{
+                    //    bracketDepth++;
+                    //}
+
+                    if (!inObject && lines[index].Trim().StartsWith("{"))
                     {
                         inObject = true;
                         obj = new StringBuilder();
+
                     }
-                    if (lines[index].Trim().StartsWith("}"))
+
+
+
+                    if (parenDepth<1 &&  lines[index].Trim().StartsWith("}"))
                     {
                         inObject = false;
                         sb.Append(obj.ToString());
@@ -347,8 +363,20 @@ namespace CodeGen
                             postfix = ",";
                         }
                     }
+
+
                     if (inObject)
                     {
+                        if (lines[index].Contains("}"))
+                        {
+                            parenDepth--;
+                        }
+
+                        //if (lines[index].Contains("]"))
+                        //{
+                        //    bracketDepth--;
+                        //}
+
                         string normal = lines[index].Replace(" ", "");
                         if(normal.Contains(tryFind))
                         {
@@ -478,13 +506,35 @@ namespace CodeGen
             UpdatePrivates();
         }
 
+        Dictionary<string, string> map = new Dictionary<string, string>()
+        {
+            {"InterflowCloudServiceGeoIp", "GeoIpCloudService" }
+        };
+
+
         private void UpdatePrivates()
         {
-            string srcPath = csdefDir.Text.Substring(0, csdefDir.Text.LastIndexOf('\\'));
+            string srcPath = csdefDir.Text.Substring(0, csdefDir.Text.IndexOf("\\src\\") + 4);
 
             // E:\cbt\Interflow\src\ThreatIntel.Azure
-            serviceName = csdefDir.Text.Substring(csdefDir.Text.LastIndexOf('\\') + 1);
+            int end = csdefDir.Text.LastIndexOf('\\') + 1;
+            serviceName = csdefDir.Text.Substring(end);
+            if (serviceName == "Service")
+            {
+                // special case deeper by one
+                string tempdir = csdefDir.Text.Substring(0, end-1);
+                serviceName = tempdir.Substring(tempdir.LastIndexOf('\\') + 1);
+                if (map.ContainsKey(serviceName))
+                {
+                    serviceName = map[serviceName];
+                }
+            }
             servideDefinitionPath = Path.Combine(csdefDir.Text, "ServiceDefinition.csdef");
+            if (!File.Exists(servideDefinitionPath))
+            {
+                return;
+            }
+
             serviceConfigurationPath1 = Path.Combine(csdefDir.Text, "ServiceConfiguration.Cloud.cscfg");
             serviceConfigurationPath2 = Path.Combine(csdefDir.Text, "ServiceConfiguration.Local.cscfg");
             serviceConfigurationPath3 = Path.Combine(srcPath, $"Deployment\\{serviceName}\\Configurations\\ServiceConfiguration.Cloud.cscfg");
