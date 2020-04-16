@@ -16,6 +16,8 @@ namespace CodeGen
     public partial class Form1 : Form
     {
         public string[] config { get; private set; }
+        public string[] configppe { get; private set; }
+        public string[] configprd { get; private set; }
         private string serviceName;
         private string servideDefinitionPath;
         private string serviceConfigurationPath1;
@@ -24,9 +26,16 @@ namespace CodeGen
         private string scopeBindingsPath;
         private bool writeFiles = false;
         private Dictionary<string, ItemData> configValues = new Dictionary<string, ItemData>();
+        private string scopeInt;
+        private string scopePPE;
+        private string scopePRD;
+
+
         public Form1()
         {
-            config = File.ReadAllLines(@"configsettings.xml");
+            config = File.ReadAllLines(@"configsettingsintva.xml");
+            configppe = File.ReadAllLines(@"E:\Data\configsettings_ppe.xml");
+            configprd = File.ReadAllLines(@"E:\Data\configsettings_prod.xml");
             InitializeComponent();
             csdefDir.Text = @"E:\cbt\Interflow\src\ThreatIntel.Azure";
             Symbol.Text = "CosmosDbProcessingSettings.IndicatorsByUrlDocumentDbEndpointHost";
@@ -44,7 +53,7 @@ namespace CodeGen
             ServiceDefinitionTextBox.Text = BuildServiceDef(SymbolName);
             ServiceConfigurationTextBox.Text = BuildServiceConfig(SymbolName);
             ScopeBindingTextBox.Text = BuildScope(className, SymbolName);
-            textBox4.Text = BuildCode(className, SymbolName);
+            CodeText.Text = BuildCode(className, SymbolName);
             UpdatePrivates();
         }
 
@@ -87,6 +96,8 @@ namespace CodeGen
         private string BuildScope(string className, string text)
         {
             StringBuilder sb = new StringBuilder();
+            StringBuilder sb1 = new StringBuilder();
+
             string _text;
             if (text.EndsWith("Key"))
             {
@@ -97,18 +108,35 @@ namespace CodeGen
                 _text = CamelToUnderScore($"{text}");
             }
 
-            string value = FindValue(className, text);
+            string value = FindValue(className, text, config);
+            string valueppe = FindValue(className, text, configppe);
+            string valueprd = FindValue(className, text, configprd);
 
-//            sb.AppendLine($",");
-            sb.AppendLine($"        {{");
-            sb.AppendLine($"          \"find\": \"{_text}\",");
-            sb.AppendLine($"          \"replaceWith\": \"{value}\"");
-            sb.AppendLine($"        }}");
+            //            sb.AppendLine($",");
+            sb1.AppendLine($"        {{");
+            sb1.AppendLine($"          \"find\": \"{_text}\",");
+            sb1.AppendLine($"          \"replaceWith\": \"{value}\"");
+            sb1.AppendLine($"        }}");
+            scopeInt = sb1.ToString();
+            sb1.Clear();
 
-            return sb.ToString();
+            sb1.AppendLine($"        {{");
+            sb1.AppendLine($"          \"find\": \"{_text}\",");
+            sb1.AppendLine($"          \"replaceWith\": \"{valueppe}\"");
+            sb1.AppendLine($"        }}");
+            scopePPE = sb1.ToString();
+            sb1.Clear();
+
+            sb1.AppendLine($"        {{");
+            sb1.AppendLine($"          \"find\": \"{_text}\",");
+            sb1.AppendLine($"          \"replaceWith\": \"{valueprd}\"");
+            sb1.AppendLine($"        }}");
+            scopePRD = sb1.ToString();
+
+            return $"Int:\r\n{scopeInt}\r\nPPE:\r\n{scopePPE}\r\nPROD:\r\n{scopePRD}\r\n";
         }
 
-        private string FindValue(string className, string text)
+        private string FindValue(string className, string text, string[] config)
         {
             string currentClass = "None";
             string retVal = "XXX";
@@ -255,14 +283,14 @@ namespace CodeGen
         private void button3_Click(object sender, EventArgs e)
         {
             Clipboard.Clear();
-            Clipboard.SetText(ScopeBindingTextBox.Text);
+            Clipboard.SetText(scopeInt);
 
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
             Clipboard.Clear();
-            Clipboard.SetText(textBox4.Text);
+            Clipboard.SetText(CodeText.Text);
 
         }
 
@@ -404,14 +432,17 @@ namespace CodeGen
 
         private Encoding GetFileEncoding(string scopeBindingsPath)
         {
-            using (var reader = new StreamReader(scopeBindingsPath, Encoding.Default, true))
+            if (File.Exists(scopeBindingsPath))
             {
-                if (reader.Peek() >= 0) // you need this!
-                    reader.Read();
+                using (var reader = new StreamReader(scopeBindingsPath, Encoding.Default, true))
+                {
+                    if (reader.Peek() >= 0) // you need this!
+                        reader.Read();
 
-                return reader.CurrentEncoding;
+                    return reader.CurrentEncoding;
+                }
             }
-
+            return Encoding.Default;
         }
 
         private void ApplyServiceConfiguration(string serviceConfigurationPath, string text)
@@ -419,41 +450,47 @@ namespace CodeGen
             // ReadFile 
             bool inSettings = false;
             bool found = false;
+            bool exist = File.Exists(serviceConfigurationPath);
+
             StringBuilder sb = new StringBuilder();
-
-            Encoding e = GetFileEncoding(serviceConfigurationPath);
-
-            string[] lines = File.ReadAllLines(serviceConfigurationPath);
-            for (int index = 0; index < lines.Length; index++)
+            csdefDir.BackColor = exist ? Color.White : Color.Red;
+            if (exist)
             {
-                if (lines[index].Contains("<ConfigurationSettings>")) { inSettings = true; }
-                if (inSettings)
+
+                Encoding e = GetFileEncoding(serviceConfigurationPath);
+
+                string[] lines = File.ReadAllLines(serviceConfigurationPath);
+                for (int index = 0; index < lines.Length; index++)
                 {
-                    if (lines[index].Contains("</ConfigurationSettings>") && !found)
+                    if (lines[index].Contains("<ConfigurationSettings>")) { inSettings = true; }
+                    if (inSettings)
                     {
-                        // Append the line
-                        sb.AppendLine($"      {text.Trim()}");
-                        inSettings = false;
-                        checkBox2.Checked = false;
+                        if (lines[index].Contains("</ConfigurationSettings>") && !found)
+                        {
+                            // Append the line
+                            sb.AppendLine($"      {text.Trim()}");
+                            inSettings = false;
+                            checkBox2.Checked = false;
+                        }
+                        // normalize line for compare
+                        string normal = lines[index].Replace(" ", "").Trim();
+                        string normal2 = text.Replace(" ", "").Trim();
+                        if (normal.Contains(normal2))
+                        {
+                            // already there ignore
+                            inSettings = false;
+                            found = true;
+                        }
                     }
-                    // normalize line for compare
-                    string normal = lines[index].Replace(" ", "").Trim();
-                    string normal2 = text.Replace(" ", "").Trim();
-                    if (normal.Contains(normal2))
-                    {
-                        // already there ignore
-                        inSettings = false;
-                        found = true;
-                    }
+                    sb.AppendLine(lines[index]);
                 }
-                sb.AppendLine(lines[index]);
-            }
 
-            string toWrite = sb.ToString().TrimEnd();
-            //toWrite = toWrite.Substring(0, toWrite.Length - 2);
-            if (writeFiles)
-            {
-                File.WriteAllText(serviceConfigurationPath, toWrite, e);
+                string toWrite = sb.ToString().TrimEnd();
+                //toWrite = toWrite.Substring(0, toWrite.Length - 2);
+                if (writeFiles)
+                {
+                    File.WriteAllText(serviceConfigurationPath, toWrite, e);
+                }
             }
         }
 
@@ -508,7 +545,8 @@ namespace CodeGen
 
         Dictionary<string, string> map = new Dictionary<string, string>()
         {
-            {"InterflowCloudServiceGeoIp", "GeoIpCloudService" }
+            {"InterflowCloudServiceGeoIp", "GeoIpCloudService" },
+            {"InterflowCloudServiceNeuStar", "NeustarCloudService" }
         };
 
 
@@ -532,8 +570,12 @@ namespace CodeGen
             servideDefinitionPath = Path.Combine(csdefDir.Text, "ServiceDefinition.csdef");
             if (!File.Exists(servideDefinitionPath))
             {
+                csdefDir.BackColor = Color.Red;
+
                 return;
             }
+
+            csdefDir.BackColor = Color.White;
 
             serviceConfigurationPath1 = Path.Combine(csdefDir.Text, "ServiceConfiguration.Cloud.cscfg");
             serviceConfigurationPath2 = Path.Combine(csdefDir.Text, "ServiceConfiguration.Local.cscfg");
@@ -617,7 +659,7 @@ namespace CodeGen
                         }
                     }
                 }
-                textBox4.Text = sb.ToString();
+                CodeText.Text = sb.ToString();
             }
 
 
@@ -766,6 +808,19 @@ namespace CodeGen
 
 
             Clipboard.SetText(sbMl.ToString());
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Clipboard.Clear();
+            Clipboard.SetText(scopePPE);
+
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {
+            Clipboard.Clear();
+            Clipboard.SetText(scopePRD);
         }
     }
 }
