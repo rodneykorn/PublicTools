@@ -106,8 +106,10 @@ namespace CheckSign
                             {
                                 string[] cspkgFiles = Directory.GetFiles(directory, "*.cspkg"); // compressed directories
                                 string[] cssxFiles = Directory.GetFiles(directory, "*.cssx"); // compressed directories
+                                string[] sfpkgFiles = Directory.GetFiles(directory, "*.sfpkg"); // compressed directories
                                 allFiles.AddRange(cspkgFiles);
                                 allFiles.AddRange(cssxFiles);
+                                allFiles.AddRange(sfpkgFiles);
                             }
 
                             string path = directory.Substring(directory.LastIndexOf("\\") + 1);
@@ -119,7 +121,7 @@ namespace CheckSign
 
                             foreach (string file in allFiles)
                             {
-                                if (file.EndsWith(".cspkg") || file.EndsWith(".cssx"))
+                                if (file.EndsWith(".cspkg") || file.EndsWith(".cssx") || file.EndsWith(".sfpkg"))
                                 {
                                     if (!file.Contains(".NotSigned."))
                                     {
